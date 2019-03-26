@@ -81,7 +81,7 @@ def norm_edit_distance(seq1,seq2):
                 edits[i+1][j+1] = min(edits[i][j+1]+1,edits[i][j],edits[i+1][j]+1)
             else:
                 edits[i+1][j+1] = min(edits[i][j+1],edits[i][j],edits[i+1][j])+1
-    norm  = edits[-1][-1]/(max(seq1,seq2))
+    norm  = edits[-1][-1]/(max(len(seq1),len(seq2)))
     return norm
 
 
@@ -273,7 +273,7 @@ def evaluation():
         if not os.path.exists(os.path.join(FLAGS.output, 'meta')):
             os.makedirs(os.path.join(FLAGS.output, 'meta'))
         def my_worker_fn():
-            name = "../toy_data.pk"
+            name = "toy_data.pk"
             #if not name.endswith('.signal'):
             #input_path = os.path.join(file_dir, name)
             print("Data file : %s"%name)
@@ -337,7 +337,7 @@ def evaluation():
         val = defaultdict(dict)  # We could read vals out of order, that's why it's a dict
         #for name in tqdm(file_list, desc="CTC decoding.",position = 2):
         start_time = time.time()
-        name = "../toy_data.pk"
+        name = "toy_data.pk"
         #file_pre = os.path.splitext(name)[0]
         #input_path = os.path.join(file_dir, name)
         if FLAGS.mode == 'rna':
@@ -349,7 +349,7 @@ def evaluation():
             eval_data ,instances= read_data_for_eval_pickle(name, FLAGS.start,
                                        seg_length=FLAGS.segment_len,
                                        step=FLAGS.jump)
-        #y_data,instances = read_data_for_eval_pickle("../toy_data.pk")
+        #y_data,instances = read_data_for_eval_pickle("toy_data.pk")
         #print(instances)
         reads_n = eval_data.reads_n
         reading_time = time.time() - start_time
@@ -483,6 +483,8 @@ if __name__ == "__main__":
                         help="File path or Folder path to the fast5 file.")
     parser.add_argument('-o', '--output', required = True,
                         help="Output Folder name")
+    parser.add_argument('-p', '--pickle', required = True,
+                        help="Pickle File name")
     parser.add_argument('-m', '--model', required = True,
                         help="model folder path")
     parser.add_argument('-s', '--start', type=int, default=0,
