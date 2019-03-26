@@ -37,7 +37,7 @@ if __name__=='__main__':
     seq_len = root._f_get_child('seq_len')
     avail_data = {}
     print("saving cached data into pickle")
-    for key in range(len(X_data)):
+    for key in range(len(X_data[:10])):
         segs = np.array(Y_seg[str(key)])
         #print(key)
         avail_data[key] = {}
