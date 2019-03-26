@@ -273,7 +273,7 @@ def evaluation():
         if not os.path.exists(os.path.join(FLAGS.output, 'meta')):
             os.makedirs(os.path.join(FLAGS.output, 'meta'))
         def my_worker_fn():
-            name = "toy_data.pk"
+            name = FLAGS.pickle
             #if not name.endswith('.signal'):
             #input_path = os.path.join(file_dir, name)
             print("Data file : %s"%name)
@@ -337,7 +337,7 @@ def evaluation():
         val = defaultdict(dict)  # We could read vals out of order, that's why it's a dict
         #for name in tqdm(file_list, desc="CTC decoding.",position = 2):
         start_time = time.time()
-        name = "toy_data.pk"
+        name = FLAGS.pickle
         #file_pre = os.path.splitext(name)[0]
         #input_path = os.path.join(file_dir, name)
         if FLAGS.mode == 'rna':
@@ -349,7 +349,7 @@ def evaluation():
             eval_data ,instances= read_data_for_eval_pickle(name, FLAGS.start,
                                        seg_length=FLAGS.segment_len,
                                        step=FLAGS.jump)
-        #y_data,instances = read_data_for_eval_pickle("toy_data.pk")
+        #y_data,instances = read_data_for_eval_pickle(FLAGS.pickle)
         #print(instances)
         reads_n = eval_data.reads_n
         reading_time = time.time() - start_time
