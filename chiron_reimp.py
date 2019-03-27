@@ -7,10 +7,10 @@ from keras.backend import ctc_decode, variable,get_value
 import keras.backend as K
 from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import numpy as np
-
-n = 100
+import sys
+n = 1000
 class_num = 5
-batch_size = 10
+batch_size = 32
 seq_len = 300
 pickle_path = "all_data.pk"
 
@@ -89,6 +89,11 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 
 
 if __name__ == "__main__":
+    args = sys.argv
+    with_ctc = 0
+    if len(args)>1:
+        with_ctc = int(args[1])
+
     x_train,y_train,y_labels = read_pickle(pickle_path,example_num = example_num , class_num = 5 , seq_len = 300)
     inputs = Input(shape=x_train.shape[1:])
     input_length = Input(name='input_length', shape=[1], dtype='int64')
@@ -97,9 +102,34 @@ if __name__ == "__main__":
     #print(np.ones(outputs2.shape[1])*int(outputs2.shape[2]))
     model2 = Model(inputs= inputs,outputs=outputs2)
     sgd = SGD()
-    model2.compile(loss = lambda y_train,outputs2 : outputs2,optimizer = sgd)
     model2.summary()
-    model2.fit(x_train,y_train,batch_size = batch_size,epochs=3)
-    decodeds = ctc_predict(model2,x_train[:10])
-    vals = get_value(decodeds[0][0])
-    print(vals)
+
+    ##ctc decoding only used during prediction
+    ## during training cross-entropy is used to calculate loss over each softmax output
+    ## works fine
+    if with_ctc == 0:
+        model2.compile(loss = "categorical_crossentropy",optimizer = sgd)
+        model2.fit(x_train,y_train,batch_size = batch_size,epochs=3)
+        decodeds = ctc_predict(model2,x_train[:10])
+        vals = get_value(decodeds[0][0])
+        print(vals)
+
+    ## ctc_batch_cost is used during training
+    ## now obtaining too high loss values and model only predicts 1
+    else:
+        labels = Input(name='the_labels', shape=[None,], dtype='int32')
+        input_length = Input(name='input_length', shape=[1], dtype='int32')
+        label_length = Input(name='label_length', shape=[1], dtype='int32')
+        loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([outputs2,labels,input_length,label_length])
+        flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
+        top_k_decoded, _ = K.ctc_decode(outputs2, flattened_input_x_width)
+        decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
+        model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
+        model3.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = sgd)
+        model3.summary()
+        n = len(x_train)
+        m = max(list(map(lambda x :len(x),y_labels)))
+        labels = np.array([[y_labels[j][i] if i<len(y_labels[j]) else 4 for i in range(m)] for j in range(n)])
+        input_lengths = np.array([300 for i in range(n)])
+        label_lengths = np.array([len(y_labels[i]) for i in range(n)])
+        model3.fit([x_train,labels,np.array(input_lengths),np.array(label_lengths)],np.array(labels),batch_size = 1,epochs=3)
