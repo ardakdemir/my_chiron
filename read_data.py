@@ -10,7 +10,6 @@ import keras
 def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
     all_data = my_dict
     keys = list(my_dict.keys())
-    example_num = len(keys)
     x_tr = []
     y_tr = []
     labels = []
@@ -34,7 +33,7 @@ def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,pa
     return x_train,y_train,y_train_class,y_labels,label_lengths
 
 ## read h5 data file
-def read_h5(path,filename,example_num = 100):
+def read_h5(path,filename,example_num = 1000):
     f = h5py.File(os.path.join(path,filename), 'r')
     keys = f.keys()
     groups = {}

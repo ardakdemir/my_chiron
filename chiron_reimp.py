@@ -108,13 +108,13 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 
 if __name__ == "__main__":
     args = sys.argv
-    with_ctc = 0
+    with_ctc = 1
     h5file_path = "../../work/data/cache/train_cache.h5"
-    h5_dict = read_h5("",h5file_path)
+    h5_dict = read_h5("",h5file_path,example_num = n)
     if len(args)>1:
         file_path = args[1]
         with_ctc = int(args[2])
-    x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True)
+    x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
 
     inputs = Input(shape=x_tr.shape[1:])
@@ -156,7 +156,8 @@ if __name__ == "__main__":
         model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
         model3.summary()
         model3.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = Adam())
-        input_lengths = np.array([300 for i in range(n)])
+        input_lengths = np.array([300 for i in range(len(x_tr))])
         label_lengths = np.array(label_lengths)
         outputs = {'ctc': np.zeros(n)}
         model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=10)
+        model3.save_weights("model3.h5")
