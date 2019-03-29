@@ -12,7 +12,7 @@ from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
 import sys
 
-
+from read_data import read_h5
 n = 1000
 class_num = 5
 batch_size = 32
@@ -110,7 +110,8 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 if __name__ == "__main__":
     args = sys.argv
     with_ctc = 0
-    
+    h5file_path = "../../work/data/cache/train_cache.h5"
+    h5_dict = read_h5("",h5file_path)
     if len(args)>1:
         file_path = args[1]
         with_ctc = int(args[2])
