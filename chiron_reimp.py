@@ -109,7 +109,7 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 if __name__ == "__main__":
     args = sys.argv
     with_ctc = 1
-    h5file_path = "../../work/data/cache/train_cache.h5)
+    h5file_path = "../../work/data/cache/train_cache.h5"
     if len(args)>1:
         h5file_path = args[1]
         with_ctc = int(args[2])
