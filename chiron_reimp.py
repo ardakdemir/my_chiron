@@ -13,7 +13,7 @@ import pickle
 import sys
 
 from read_data import read_h5,read_from_dict
-n = 1000
+n = 100000
 class_num = 5
 batch_size = 32
 epoch_num = 10
