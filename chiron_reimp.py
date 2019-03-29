@@ -1,4 +1,5 @@
 import numpy as np
+import keras
 from keras.models import Sequential
 from keras.layers import Conv1D,Conv2D,Dense, Dropout,Flatten,Bidirectional, Activation,BatchNormalization
 from keras.layers import TimeDistributed
@@ -17,17 +18,19 @@ class_num = 5
 batch_size = 32
 epoch_num = 10
 seq_len = 300
-pickle_path = "all_data.pk"
+pickle_path = "toy_data.pk"
 
 ##read nucleotide sequence for each x,y pair and store in arrays
 ## pad the nucleotide sequences into max_length with 4 (denoting blank)
 def read_pickle(pickle_path,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
     all_data = pickle.load(open(pickle_path,"rb"))
     keys = list(all_data.keys())
+    #print(len(keys))
     #print(all_data[keys[0]]['y_vec'])
     x_tr = []
     y_tr = []
     labels = []
+    print(example_num)
     label_lengths = []
     for key in keys:
         x_tr.append(all_data[key]['x_data'])
@@ -107,8 +110,10 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 if __name__ == "__main__":
     args = sys.argv
     with_ctc = 0
+    
     if len(args)>1:
-        with_ctc = int(args[1])
+        file_path = args[1]
+        with_ctc = int(args[2])
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_pickle(pickle_path,example_num=n)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
 
