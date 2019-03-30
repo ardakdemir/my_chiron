@@ -188,8 +188,8 @@ if __name__ == "__main__":
         #with_ctc = int(args[2])
     h5_dict = read_h5("",h5file_path,example_num = n)
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
-    inputs = (x_tr,y_tr,y_categorical,y_labels,label_lengths)
-    (x_tr,y_tr,y_categorical,y_labels,label_lengths ),(test_x_tr,test_y_tr,test_y_categorical,test_y_labels,test_label_lengths ) = split_data((x_tr,y_tr,y_categorical,y_labels,label_lengths),test_size)
+    
+    #(x_tr,y_tr,y_categorical,y_labels,label_lengths ),(test_x_tr,test_y_tr,test_y_categorical,test_y_labels,test_label_lengths ) = split_data((x_tr,y_tr,y_categorical,y_labels,label_lengths),test_size)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
     len(test_x_tr)
     inputs = Input(shape=x_tr.shape[1:])
