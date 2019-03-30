@@ -12,6 +12,10 @@ from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
 import sys
 import os
+
+
+from evaluate import evaluate_preds
+
 from read_data import read_h5,read_from_dict
 n = 100000
 class_num = 5
@@ -106,10 +110,13 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
     return decoded_preds
 
 
+
 if __name__ == "__main__":
     args = sys.argv
     with_ctc = 1
     os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    evaluate = 0
+
     h5file_path = "../../work/data/cache/train_cache.h5"
     if len(args)>1:
         h5file_path = args[1]
@@ -144,21 +151,22 @@ if __name__ == "__main__":
     else:
         # Define CTC loss
         max_nuc_len = len(y_labels[0])
-        def ctc_lambda_func(args):
-            y_pred, labels, input_length, label_length = args
-            return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
         labels = Input(name='the_labels', shape=[max_nuc_len], dtype='int32')
         input_length = Input(name='input_length', shape=[1], dtype='int32')
         label_length = Input(name='label_length', shape=[1], dtype='int32')
         loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([preds,labels,input_length,label_length])
         flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
+
         top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
         decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
+
         model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
         model3.summary()
         model3.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = Adam())
+
         input_lengths = np.array([300 for i in range(len(x_tr))])
         label_lengths = np.array(label_lengths)
         outputs = {'ctc': np.zeros(n)}
+
         model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=10)
         model3.save_weights("model3.h5")
