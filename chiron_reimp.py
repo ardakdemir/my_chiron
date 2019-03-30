@@ -188,10 +188,10 @@ if __name__ == "__main__":
         #with_ctc = int(args[2])
     h5_dict = read_h5("",h5file_path,example_num = n)
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
-    
+
     #(x_tr,y_tr,y_categorical,y_labels,label_lengths ),(test_x_tr,test_y_tr,test_y_categorical,test_y_labels,test_label_lengths ) = split_data((x_tr,y_tr,y_categorical,y_labels,label_lengths),test_size)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
-    len(test_x_tr)
+    #len(test_x_tr)
     inputs = Input(shape=x_tr.shape[1:])
     input_length = Input(name='input_length', shape=[1], dtype='int64')
     outputs = chiron_cnn(inputs,256,1,3)
@@ -231,17 +231,17 @@ if __name__ == "__main__":
         input_lengths = np.array([300 for i in range(len(x_tr))])
         label_lengths = np.array(label_lengths)
         outputs = {'ctc': np.zeros(n)}
-        model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=10)
+        model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=epoch_num)
         model3.save_weights("model3_weights.h5")
         model3.save("model3.h5")
 
-        inputs = np.array(test_x_tr)
+        inputs = np.array(x_tr[:test_size])
         shapes = [len(test_x_tr[0])for i in range(test_size)]
         print(inputs.shape)
         decoded = decoder([inputs, shapes])[0]
         print(decoded)
         compact_preds = delete_blanks(decoded)
-        compact_truths = delete_blanks(test_y_labels,key=4)
+        compact_truths = delete_blanks(y_labels[:test_size],key=4)
         out = open(out_file,"w")
         mean,std = evaluate_preds(compact_preds, compact_truths)
         print("Average normalized edit distance : %0.5f"%mean )
