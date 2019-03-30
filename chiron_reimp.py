@@ -17,10 +17,10 @@ from random import shuffle
 from evaluate import evaluate_preds
 
 from read_data import read_h5,read_from_dict, split_data
-n = 500000
+n = 300000
 test_size = n/10
 class_num = 5
-batch_size = 1100
+batch_size = 32
 epoch_num = 3
 seq_len = 300
 max_nuc_len = 48
