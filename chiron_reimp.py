@@ -170,7 +170,7 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 
 
 if __name__ == "__main__":
-    test =1
+    test =0
     out_file = "scores_new"
     model_weight_path = "model3_weights.h5"
     test_folder = "../../work/data/cache/"
