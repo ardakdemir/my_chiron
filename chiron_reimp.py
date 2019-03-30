@@ -11,7 +11,7 @@ import keras.backend as K
 from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
 import sys
-
+import os
 from read_data import read_h5,read_from_dict
 n = 100000
 class_num = 5
@@ -109,10 +109,11 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 if __name__ == "__main__":
     args = sys.argv
     with_ctc = 1
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     h5file_path = "../../work/data/cache/train_cache.h5"
     if len(args)>1:
         h5file_path = args[1]
-        with_ctc = int(args[2])
+        #with_ctc = int(args[2])
     h5_dict = read_h5("",h5file_path,example_num = n)
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
