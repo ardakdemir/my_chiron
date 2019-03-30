@@ -1,0 +1,1 @@
+Average normalized edit distance : 0.36582Standard deviation: 0.06945

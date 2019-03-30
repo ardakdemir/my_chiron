@@ -7,6 +7,8 @@ path = "../../work/data/cache"
 filename = 'train_cache.h5'
 import keras
 ## read data into suitable format for the model
+def split_data(inputs,test_size):
+    return tuple(map(lambda x : x[:-test_size],inputs)),tuple(map(lambda x : x[-test_size:],inputs))
 def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
     all_data = my_dict
     keys = list(my_dict.keys())
@@ -30,7 +32,7 @@ def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,pa
             y_labels[i] = np.pad(y_labels[i],(0,max_length-leng),'constant', constant_values=(4,4))
     #print(y_labels[0])
     y_train_class = keras.utils.to_categorical(y_train,num_classes = class_num)
-    return x_train,y_train,y_train_class,y_labels,label_lengths
+    return (x_train,y_train,y_train_class,y_labels,label_lengths)
 
 ## read h5 data file
 def read_h5(path,filename,example_num = 1000):

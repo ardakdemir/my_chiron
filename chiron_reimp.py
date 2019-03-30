@@ -16,14 +16,16 @@ from random import shuffle
 
 from evaluate import evaluate_preds
 
-from read_data import read_h5,read_from_dict
-n = 100000
+from read_data import read_h5,read_from_dict, split_data
+n = 500000
+test_size = n/10
 class_num = 5
-batch_size = 32
-epoch_num = 10
+batch_size = 1100
+epoch_num = 3
 seq_len = 300
 max_nuc_len = 48
 pickle_path = "toy_data.pk"
+
 
 def create_model(input_shape=(300,1),class_num=5,max_nuc_len =48):
     inputs = Input(shape=input_shape)
@@ -39,29 +41,46 @@ def create_model(input_shape=(300,1),class_num=5,max_nuc_len =48):
     model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
     return inputs,input_length,outputs,outputs2,dense,preds,labels,input_length,label_length,loss_out,model3
 
-def test_model(model_weight_path,h5_test_path, test_size = 100):
-    x_data = np.array(pickle.load(open('x_data.pk',"rb")))
-    shuffle(x_data)
+def delete_blanks(preds,key = -1):
+    deleted_preds = []
+    for pred in preds:
+        if key in pred:
+            deleted_preds.append(pred[:np.where(pred==key)[0][0]])
+        else:
+            deleted_preds.append(pred)
+    return deleted_preds
+
+
+def test_model(model_weight_path,test_folder,h5_test_name, test_size = 10,out_file = "results.txt"):
+    #x_data = np.array(pickle.load(open('x_data.pk',"rb")))
+    #shuffle(x_data)
     #y_data = pickle.load(open('y_data.pk',"rb"))
-    x_data = x_data[:test_size].reshape(len(x_data[:test_size]),300,1)
-
-
-    h5_dict = read_h5("",h5_test_path,example_num = n)
-    x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
+    #x_data = x_data[:test_size].reshape(len(x_data[:test_size]),300,1)
+    h5_dict = read_h5(test_folder,h5_test_name,example_num = test_size)
+    x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = test_size , class_num = 5 , seq_len = 300 ,padding = True)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
-    
 
+    print(y_labels[0])
     inputs,input_length,outputs,outputs2,dense,preds,labels,input_length,label_length,loss_out,model3 = create_model()
     flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
     top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
     model3.load_weights(model_weight_path)
     #model3.summary()
-    inputs = x_data
-    shapes = [len(x_data[0])for i in range(test_size)]
+    inputs = np.array(x_tr)
+    shapes = [len(x_tr[0])for i in range(test_size)]
     print(inputs.shape)
-    decoded = decoder([inputs, shapes])
-    print(decoded[0])
+    decoded = decoder([inputs, shapes])[0]
+    print(decoded)
+    compact_preds = delete_blanks(decoded)
+    compact_truths = delete_blanks(y_labels,key=4)
+    out = open(out_file,"w")
+    mean,std = evaluate_preds(compact_preds, compact_truths)
+    print("Average normalized edit distance : %0.5f"%mean )
+    print("Standard deviation: %0.5f"%std )
+    out.write("Average normalized edit distance : %0.5f\n"%mean )
+    out.write("Standard deviation: %0.5f\n"%std )
+    out.close()
     return 0
 
 ##read nucleotide sequence for each x,y pair and store in arrays
@@ -152,10 +171,12 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 
 if __name__ == "__main__":
     test =1
+    out_file = "scores_new"
     model_weight_path = "model3_weights.h5"
-    test_data_path = ""
+    test_folder = "../../work/data/cache/"
+    test_file = "train_cache.h5"
     if test == 1:
-        test_model(model_weight_path,test_data_path)
+        test_model(model_weight_path,test_folder,test_file)
         exit()
     args = sys.argv
     with_ctc = 1
@@ -167,8 +188,10 @@ if __name__ == "__main__":
         #with_ctc = int(args[2])
     h5_dict = read_h5("",h5file_path,example_num = n)
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = n , class_num = 5 , seq_len = 300 ,padding = True)
+    inputs = (x_tr,y_tr,y_categorical,y_labels,label_lengths)
+    (x_tr,y_tr,y_categorical,y_labels,label_lengths ),(test_x_tr,test_y_tr,test_y_categorical,test_y_labels,test_label_lengths ) = split_data((x_tr,y_tr,y_categorical,y_labels,label_lengths),test_size)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
-
+    len(test_x_tr)
     inputs = Input(shape=x_tr.shape[1:])
     input_length = Input(name='input_length', shape=[1], dtype='int64')
     outputs = chiron_cnn(inputs,256,1,3)
@@ -209,4 +232,20 @@ if __name__ == "__main__":
         label_lengths = np.array(label_lengths)
         outputs = {'ctc': np.zeros(n)}
         model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=10)
-        model3.save_weights("model3.h5")
+        model3.save_weights("model3_weights.h5")
+        model3.save("model3.h5")
+
+        inputs = np.array(test_x_tr)
+        shapes = [len(test_x_tr[0])for i in range(test_size)]
+        print(inputs.shape)
+        decoded = decoder([inputs, shapes])[0]
+        print(decoded)
+        compact_preds = delete_blanks(decoded)
+        compact_truths = delete_blanks(test_y_labels,key=4)
+        out = open(out_file,"w")
+        mean,std = evaluate_preds(compact_preds, compact_truths)
+        print("Average normalized edit distance : %0.5f"%mean )
+        print("Standard deviation: %0.5f"%std )
+        out.write("Average normalized edit distance : %0.5f\n"%mean )
+        out.write("Standard deviation: %0.5f\n"%std )
+        out.close()
