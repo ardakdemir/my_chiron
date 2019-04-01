@@ -5,18 +5,24 @@ from keras.layers import Conv1D,Conv2D,Dense, Dropout,Flatten,Bidirectional, Act
 from keras.layers import TimeDistributed
 from keras.optimizers import SGD
 from keras.models import Sequential,Model
+from keras.models import load_model
 from keras.optimizers import Adam
 from keras.backend import ctc_decode, variable,get_value
 import keras.backend as K
 from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
 import sys
-import os
+
 from random import shuffle
 
+import os
+import logging
+import datetime
+import argparse
 from evaluate import evaluate_preds
 
 from read_data import read_h5,read_from_dict, split_data
+
 n = 300000
 test_size = n/10
 class_num = 5
@@ -51,22 +57,33 @@ def delete_blanks(preds,key = -1):
     return deleted_preds
 
 
-def test_model(model_weight_path,test_folder,h5_test_name, test_size = 10,out_file = "results.txt"):
+def test_model(load_type,model_path,h5_test_name, test_size = 10,out_file = "results.txt"):
     #x_data = np.array(pickle.load(open('x_data.pk',"rb")))
     #shuffle(x_data)
     #y_data = pickle.load(open('y_data.pk',"rb"))
     #x_data = x_data[:test_size].reshape(len(x_data[:test_size]),300,1)
+    test_folder = ""
     h5_dict = read_h5(test_folder,h5_test_name,example_num = test_size)
+    if  load_type == 0:
+        model = load_model(model_path)
+        layer_name = 'softmax'
+        preds = Model(inputs=model.input,
+                                 outputs=model.get_layer(layer_name).output)
+        #preds = K.function([model.input],
+        #                          [model.get_layer(layer_name).output])
+    else:
+        inputs,input_length,outputs,outputs2,dense,preds,labels,input_length,label_length,loss_out,model = create_model()
+        model.load_weights(model_path)
+    model.summary()
+    #preds.summary()
+    ##read data from h5 file
     x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = test_size , class_num = 5 , seq_len = 300 ,padding = True)
     assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
 
-    print(y_labels[0])
-    inputs,input_length,outputs,outputs2,dense,preds,labels,input_length,label_length,loss_out,model3 = create_model()
+
     flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
     top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
-    model3.load_weights(model_weight_path)
-    #model3.summary()
     inputs = np.array(x_tr)
     shapes = [len(x_tr[0])for i in range(test_size)]
     print(inputs.shape)
@@ -167,10 +184,55 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
         decoded_preds = ctc_decode(preds,lens(inputs),beam_width=beam_width)
     return decoded_preds
 
+def evaluation(args):
+    Flags = args
+    test_model(Flags.loadtype,Flags.model,Flags.input, test_size = Flags.size,out_file  = Flags.out_file )
 
+def train(args):
+    a = 5
+def main(arguments=sys.argv[1:]):
+    currentDT = datetime.datetime.now()
+    current_time = currentDT.strftime("%Y%m%d.%H%M%S")
+    parser = argparse.ArgumentParser(prog='UoTchiron', description='A deep neural network basecaller.')
+    subparsers = parser.add_subparsers(title='sub command', help='sub command help')
+
+    parser_call = subparsers.add_parser('test', description='Segmented basecalling', help='Perform basecalling.')
+    parser_call.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format.")
+    parser_call.add_argument('-t', '--loadtype', default = 0,type=int,help="Binary value 0 for loading model directly 1 for loading weights")
+    parser_call.add_argument('-m', '--model', required=True, help="File path to the model file or the model weight file in h5 format.")
+    parser_call.add_argument('-s', '--size',  type = int , default = '100', help="Number of samples to be read from the input file")
+    parser_call.add_argument('-o', '--out_file', type= str, default = "scores.txt", help="File name to output scores.")
+    parser_call.add_argument('--beam', type=int, default=50, help="Beam width used in beam search decoder")
+    parser_call.set_defaults(func=evaluation)
+
+
+    parser_train = subparsers.add_parser('train', description='Segmented basecalling', help='Perform basecalling.')
+    parser_train.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format.")
+    parser_train.add_argument('-t', '--savetype', default = 0,type=int,help="Binary value 0 for loading model directly 1 for loading weights")
+    parser_train.add_argument('-m', '--model', default = "model%s"%current_time, help="File name of the model file or the model weight file in h5 format.")
+    parser_train.add_argument('-s', '--size',  help="Number of samples to be read from the input file")
+    parser_train.add_argument('-o', '--out_file', default = "scores.txt", help="File name to output scores.")
+    parser_train.add_argument('-b', '--batch_size', default = "32", help="Batch size")
+    parser_train.add_argument('-e', '--epoch_num', default = "10", help="Epoch number")
+    parser_train.add_argument('-l', '--sequence_len', type=int, default=300, help="Segment length to be divided into.")
+    parser_train.add_argument('-g', '--gpu', type=str, default='0', help="GPU ID")
+
+    parser_train.set_defaults(func=train)
+
+    args = parser.parse_args(arguments)
+
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
-    test =0
+    logging.basicConfig(level=logging.INFO)
+    print(sys.argv[1:])
+    main()
+    exit()
+    test =1
+    print("asdasd")
     out_file = "scores_new"
     model_weight_path = "model3_weights.h5"
     test_folder = "../../work/data/cache/"

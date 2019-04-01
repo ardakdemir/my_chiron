@@ -1,4 +1,3 @@
-
 import h5py
 import sys
 import os
@@ -45,7 +44,8 @@ def read_h5(path,filename,example_num = 1000):
     Y_vec = f['Y_vec']
     seq_len = f['seq_len']
     avail_data = {}
-    for key in range(len(X_data[:example_num])):
+    #print(X_data[example_num])
+    for key in range(example_num):
         segs = np.array(Y_seg[str(key)])
         #print(key)
         avail_data[key] = {}
