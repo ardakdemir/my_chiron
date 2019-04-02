@@ -17,7 +17,7 @@ def norm_edit_distance(pred,truth):
                 edits[i+1][j+1] = min(edits[i][j+1]+1,edits[i][j],edits[i+1][j]+1)
             else:
                 edits[i+1][j+1] = min(edits[i][j+1],edits[i][j],edits[i+1][j])+1
-    norm  = edits[-1][-1]/len(truth)
+    norm  = float(edits[-1][-1])/len(truth)
     return norm
 
 ## calculate the average normalized edit distance over all predictions

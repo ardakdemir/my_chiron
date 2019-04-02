@@ -67,8 +67,8 @@ def test_model(load_type,model_path,h5_test_name, test_size = 10,out_file = "res
     if  load_type == 0:
         model = load_model(model_path)
         layer_name = 'softmax'
-        preds = Model(inputs=model.input,
-                                 outputs=model.get_layer(layer_name).output)
+        preds = Model(inputs=model.input,outputs=model.get_layer(layer_name).output)
+
         #preds = K.function([model.input],
         #                          [model.get_layer(layer_name).output])
     else:
@@ -88,7 +88,7 @@ def test_model(load_type,model_path,h5_test_name, test_size = 10,out_file = "res
     shapes = [len(x_tr[0])for i in range(test_size)]
     print(inputs.shape)
     decoded = decoder([inputs, shapes])[0]
-    print(decoded)
+    #print(decoded)
     compact_preds = delete_blanks(decoded)
     compact_truths = delete_blanks(y_labels,key=4)
     out = open(out_file,"w")
