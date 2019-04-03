@@ -51,9 +51,6 @@ def delete_blanks(preds,key = -1):
     deleted_preds = []
     for pred in preds:
         if key in pred:
-            print(key)
-            print(pred)
-            print(np.where(pred==key))
             deleted_preds.append(pred[:np.where(pred==key)[0][0]])
         else:
             deleted_preds.append(pred)
@@ -102,12 +99,12 @@ def test_model(load_type,model_path,test_name, read_raw = False,test_size = 100,
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
     inputs = np.array(x_tr).reshape(len(x_tr),seq_len,1)
     shapes = [len(x_tr[0])for i in range(len(x_tr))]
-    print(inputs.shape)
+    #print(inputs.shape)
     #print(inputs[0])
     #print(len(y_labels[0]))
     #print(y_labels.shape)
     decoded = decoder([inputs, shapes])[0]
-    print(decoded)
+    #print(decoded)
     compact_preds = delete_blanks(decoded)
     if read_raw:
         compact_truths = delete_blanks_2(y_labels,key=4)
