@@ -24,8 +24,8 @@ def norm_edit_distance(pred,truth):
 def evaluate_preds(preds,truths):
     distances = []
     for pred , truth in zip(preds,truths):
-        print(pred)
-        print(truth)
+        #print(pred)
+        #print(truth)
         norm_dist = norm_edit_distance(pred,truth)
         distances.append(norm_dist)
     stats = get_stats(distances)

@@ -21,7 +21,7 @@ import datetime
 import argparse
 from evaluate import evaluate_preds
 
-from read_data import read_h5,read_from_dict, split_data
+from read_data import read_h5,read_from_dict, split_data,read_raw_into_segments
 
 n = 300000
 test_size = n/10
@@ -51,19 +51,37 @@ def delete_blanks(preds,key = -1):
     deleted_preds = []
     for pred in preds:
         if key in pred:
+            print(key)
+            print(pred)
+            print(np.where(pred==key))
             deleted_preds.append(pred[:np.where(pred==key)[0][0]])
         else:
             deleted_preds.append(pred)
     return deleted_preds
 
-
-def test_model(load_type,model_path,h5_test_name, test_size = 10,out_file = "results.txt"):
+def delete_blanks_2(preds,key = 4):
+    deleted_preds = []
+    for pred in preds:
+        if key in pred:
+            deleted_preds.append(pred[:pred.index(key)])
+        else:
+            deleted_preds.append(pred)
+    return deleted_preds
+def test_model(load_type,model_path,test_name, read_raw = False,test_size = 100,sample_num = 100,seq_len = 300,out_file = "results.txt"):
     #x_data = np.array(pickle.load(open('x_data.pk',"rb")))
     #shuffle(x_data)
     #y_data = pickle.load(open('y_data.pk',"rb"))
     #x_data = x_data[:test_size].reshape(len(x_data[:test_size]),300,1)
     test_folder = ""
-    h5_dict = read_h5(test_folder,h5_test_name,example_num = test_size)
+    if read_raw:
+        print("Reading raw data")
+        x_tr, y_labels , label_lengths,max_label_length= read_raw_into_segments(test_name,seq_length = seq_len, sample_num = sample_num,y_pad = 4)
+    else:
+        h5_dict = read_h5(test_folder,test_name,example_num = test_size)
+        x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = test_size , class_num = 5 , seq_len = 300 ,padding = True)
+        assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
+        print("Reading h5 data")
+        print(len(x_tr[0]))
     if  load_type == 0:
         model = load_model(model_path)
         layer_name = 'softmax'
@@ -77,20 +95,24 @@ def test_model(load_type,model_path,h5_test_name, test_size = 10,out_file = "res
     model.summary()
     #preds.summary()
     ##read data from h5 file
-    x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = test_size , class_num = 5 , seq_len = 300 ,padding = True)
-    assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
 
 
     flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
     top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
-    inputs = np.array(x_tr)
-    shapes = [len(x_tr[0])for i in range(test_size)]
+    inputs = np.array(x_tr).reshape(len(x_tr),seq_len,1)
+    shapes = [len(x_tr[0])for i in range(len(x_tr))]
     print(inputs.shape)
+    #print(inputs[0])
+    #print(len(y_labels[0]))
+    #print(y_labels.shape)
     decoded = decoder([inputs, shapes])[0]
-    #print(decoded)
+    print(decoded)
     compact_preds = delete_blanks(decoded)
-    compact_truths = delete_blanks(y_labels,key=4)
+    if read_raw:
+        compact_truths = delete_blanks_2(y_labels,key=4)
+    else:
+        compact_truths = delete_blanks(y_labels,key=4)
     out = open(out_file,"w")
     mean,std = evaluate_preds(compact_preds, compact_truths)
     print("Average normalized edit distance : %0.5f"%mean )
@@ -186,7 +208,7 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
 
 def evaluation(args):
     Flags = args
-    test_model(Flags.loadtype,Flags.model,Flags.input, test_size = Flags.size,out_file  = Flags.out_file )
+    test_model(Flags.loadtype,Flags.model,Flags.input, read_raw = Flags.readraw, sample_num= Flags.samplenum,test_size = Flags.size,out_file  = Flags.out_file )
 
 def train(args):
     a = 5
@@ -197,20 +219,23 @@ def main(arguments=sys.argv[1:]):
     subparsers = parser.add_subparsers(title='sub command', help='sub command help')
 
     parser_call = subparsers.add_parser('test', description='Segmented basecalling', help='Perform basecalling.')
-    parser_call.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format.")
+    parser_call.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format or folder of the raw signals and labels.")
     parser_call.add_argument('-t', '--loadtype', default = 0,type=int,help="Binary value 0 for loading model directly 1 for loading weights")
+    parser_call.add_argument('-r', '--readraw', default = False,type=bool,help="Boolean False for reading from h5 True for reading raw")
     parser_call.add_argument('-m', '--model', required=True, help="File path to the model file or the model weight file in h5 format.")
-    parser_call.add_argument('-s', '--size',  type = int , default = '100', help="Number of samples to be read from the input file")
+    parser_call.add_argument('-s', '--size',  type = int , default = '100', help="Number of segments to be read from the input file")
+    parser_call.add_argument('-ss', '--samplenum',  type = int , default = '1', help="Number of signals to be read from the input file")
     parser_call.add_argument('-o', '--out_file', type= str, default = "scores.txt", help="File name to output scores.")
     parser_call.add_argument('--beam', type=int, default=50, help="Beam width used in beam search decoder")
     parser_call.set_defaults(func=evaluation)
 
 
     parser_train = subparsers.add_parser('train', description='Segmented basecalling', help='Perform basecalling.')
-    parser_train.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format.")
+    parser_train.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format or folder of the raw signals and labels.")
     parser_train.add_argument('-t', '--savetype', default = 0,type=int,help="Binary value 0 for loading model directly 1 for loading weights")
     parser_train.add_argument('-m', '--model', default = "model%s"%current_time, help="File name of the model file or the model weight file in h5 format.")
     parser_train.add_argument('-s', '--size',  help="Number of samples to be read from the input file")
+
     parser_train.add_argument('-o', '--out_file', default = "scores.txt", help="File name to output scores.")
     parser_train.add_argument('-b', '--batch_size', default = "32", help="Batch size")
     parser_train.add_argument('-e', '--epoch_num', default = "10", help="Epoch number")
@@ -299,9 +324,9 @@ if __name__ == "__main__":
 
         inputs = np.array(x_tr[:test_size])
         shapes = [len(test_x_tr[0])for i in range(test_size)]
-        print(inputs.shape)
+        #print(inputs.shape)
         decoded = decoder([inputs, shapes])[0]
-        print(decoded)
+        #print(decoded)
         compact_preds = delete_blanks(decoded)
         compact_truths = delete_blanks(y_labels[:test_size],key=4)
         out = open(out_file,"w")

@@ -2,12 +2,85 @@ import h5py
 import sys
 import os
 import numpy as np
-path = "../../work/data/cache"
-filename = 'train_cache.h5'
+path = "../../work/data/chiron_data/eval"
+filename = 'train_cache.hdf5'
 import keras
+import glob
+#from statsmodels import robust
+
+import random
+
+Alphabeta = ['A', 'C', 'G', 'T']
 ## read data into suitable format for the model
 def split_data(inputs,test_size):
     return tuple(map(lambda x : x[:-test_size],inputs)),tuple(map(lambda x : x[-test_size:],inputs))
+
+def read_raw_into_segments(signal_folder,seq_length = 300,normalize= "mean",sample_num = 100,y_pad = 4):
+    signals = glob.glob(os.path.join(signal_folder,"*.signal"))
+    x_data = []
+    y_data = []
+    y_lengths = []
+    random.shuffle(signals)
+    def get_stats(error_list):
+        mean = np.mean(error_list)
+        median = np.median(error_list)
+        std  = np.std(error_list)
+        return mean,median,std
+    def y_map(char):
+        return Alphabeta.index(char)
+    for signal in signals[:sample_num]:
+        label_file_name = signal[:-6]+"label"
+        label_f = open(label_file_name).readlines()
+        signal_fr = open(signal).read().split()
+        signal_f = [int(x) for x in signal_fr]
+        mean,median,std = get_stats(signal_f)
+        if normalize == "mean":
+            signal_f = (signal_f - mean) / std
+        elif normalize == "median":
+            signal_f = (signal_f - median) / np.float(robust.mad(signal_f))
+        x_dat = []
+        y_dat = []
+        current_len = 0
+        for line in label_f:
+            ls = line.split()
+            s_base = int(ls[0])
+            e_base = int(ls[1])
+            event_len = e_base - s_base
+            if current_len +event_len > seq_length:
+                if current_len > seq_length/2 and len(y_dat)>2:
+                    for i in range(seq_length-current_len):
+                        x_dat.append(0)
+                    x_data.append(x_dat)
+                    y_data.append(y_dat)
+                    x_dat = []
+                    y_dat = []
+                    current_len = 0
+                else: ## skip the previous segment because it is short or contain too little bases
+                    x_dat = []
+                    y_dat = []
+                    current_len = 0
+                    for i in range(s_base,e_base):
+                        x_dat.append(signal_f[i])
+                    y_dat.append(y_map(ls[2]))
+                    current_len = current_len + event_len
+            else:
+                for i in range(s_base,e_base):
+                    x_dat.append(signal_f[i])
+                y_dat.append(y_map(ls[2]))
+                current_len = current_len + event_len
+    max_all = lambda data : (np.argmax(list(map(lambda x : len(x),data))),len(data[np.argmax(list(map(lambda x : len(x),data)))]))
+    max_label_length = max_all(y_data)[1]
+    lengths = []
+    y_padded = []
+    for y in y_data:
+        y_new = []
+        for l in y:
+            y_new.append(l)
+        lengths.append(len(y))
+        for i in range(max_label_length-len(y)):
+            y_new.append(y_pad)
+        y_padded.append(y_new)
+    return x_data,y_padded,lengths,max_label_length
 def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
     all_data = my_dict
     keys = list(my_dict.keys())
@@ -33,10 +106,10 @@ def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,pa
     y_train_class = keras.utils.to_categorical(y_train,num_classes = class_num)
     return (x_train,y_train,y_train_class,y_labels,label_lengths)
 
+
 ## read h5 data file
 def read_h5(path,filename,example_num = 1000):
     f = h5py.File(os.path.join(path,filename), 'r')
-    keys = f.keys()
     groups = {}
     Y_ctc = f['Y_ctc']
     Y_seg = f['Y_seg']
@@ -75,4 +148,4 @@ if __name__=="__main__":
     args = sys.argv
     example_num = 1000
     dict_file = read_h5(path,filename,example_num = example_num)
-    print(dict_file.keys())
+    print(len(dict_file.keys()))
