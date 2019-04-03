@@ -95,7 +95,9 @@ def test_model(load_type,model_path,test_name, read_raw = False,test_size = 100,
 
 
     flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
-    top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
+    top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width,greedy=False,
+    beam_width=20,
+    top_paths=1)
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
     inputs = np.array(x_tr).reshape(len(x_tr),seq_len,1)
     shapes = [len(x_tr[0])for i in range(len(x_tr))]
