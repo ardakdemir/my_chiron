@@ -21,13 +21,16 @@ def read_raw_into_segments(signal_folder,seq_length = 300,normalize= "mean",samp
     y_data = []
     y_lengths = []
     random.shuffle(signals)
+
     def get_stats(error_list):
         mean = np.mean(error_list)
         median = np.median(error_list)
         std  = np.std(error_list)
         return mean,median,std
+
     def y_map(char):
         return Alphabeta.index(char)
+
     for signal in signals[:sample_num]:
         label_file_name = signal[:-6]+"label"
         label_f = open(label_file_name).readlines()
@@ -51,7 +54,7 @@ def read_raw_into_segments(signal_folder,seq_length = 300,normalize= "mean",samp
                     for i in range(seq_length-current_len):
                         x_dat.append(0)
                     x_data.append(x_dat)
-                    y_data.append(y_dat)
+                    y_data.append(np.array(y_dat))
                     x_dat = []
                     y_dat = []
                     current_len = 0
@@ -81,6 +84,7 @@ def read_raw_into_segments(signal_folder,seq_length = 300,normalize= "mean",samp
             y_new.append(y_pad)
         y_padded.append(y_new)
     return x_data,y_padded,lengths,max_label_length
+
 def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
     all_data = my_dict
     keys = list(my_dict.keys())
@@ -91,7 +95,7 @@ def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,pa
     for key in keys:
         x_tr.append(all_data[key]['x_data'])
         y_tr.append(all_data[key]['y_vec'])
-        labels.append(np.array(all_data[key]["nucleotides"])-1)
+        labels.append(np.array(all_data[key]["nucleotides"])-1)## X mapped to X-1
     x_train = np.array(x_tr[:example_num]).reshape(example_num,seq_len,1)
     y_train = np.array(y_tr[:example_num]).reshape(example_num,seq_len,1)
     y_labels =labels[:example_num]

@@ -26,6 +26,10 @@ from read_data import read_h5,read_from_dict, split_data,read_raw_into_segments
 n = 300000
 test_size = n/10
 class_num = 5
+rnn_layers = 3
+cnn_filter_num = 256
+window+len = 3
+res_layer_num = 5
 batch_size = 32
 epoch_num = 3
 seq_len = 300
@@ -33,7 +37,9 @@ max_nuc_len = 48
 pickle_path = "toy_data.pk"
 
 
-def create_model(input_shape=(300,1),class_num=5,max_nuc_len =48):
+
+## max_nuc_len is interesting
+def create_model(input_shape=(300,1),cnn_filter_num =256,rnn_hidden_num = 200,class_num=5,max_nuc_len = 48):
     inputs = Input(shape=input_shape)
     input_length = Input(name='input_length', shape=[1], dtype='int64')
     outputs = chiron_cnn(inputs,256,1,3)
@@ -73,6 +79,7 @@ def test_model(load_type,model_path,test_name, read_raw = False,test_size = 100,
     if read_raw:
         print("Reading raw data")
         x_tr, y_labels , label_lengths,max_label_length= read_raw_into_segments(test_name,seq_length = seq_len, sample_num = sample_num,y_pad = 4)
+        print("Number of segments used for testing: %d"%len(x_tr))
     else:
         h5_dict = read_h5(test_folder,test_name,example_num = test_size)
         x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = test_size , class_num = 5 , seq_len = 300 ,padding = True)
@@ -92,8 +99,6 @@ def test_model(load_type,model_path,test_name, read_raw = False,test_size = 100,
     model.summary()
     #preds.summary()
     ##read data from h5 file
-
-
     flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
     top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width,greedy=False,
     beam_width=20,
@@ -206,11 +211,20 @@ def ctc_predict(model,inputs,beam_width = 100, top_paths = 1):
     return decoded_preds
 
 def evaluation(args):
+    global FLAGS
     Flags = args
     test_model(Flags.loadtype,Flags.model,Flags.input, read_raw = Flags.readraw, sample_num= Flags.samplenum,test_size = Flags.size,out_file  = Flags.out_file )
 
-def train(args):
-    a = 5
+def train():
+    
+
+def run_train(args):
+    global FLAGS
+    FLAGS = args
+    train()
+
+
+
 def main(arguments=sys.argv[1:]):
     currentDT = datetime.datetime.now()
     current_time = currentDT.strftime("%Y%m%d.%H%M%S")
@@ -241,7 +255,7 @@ def main(arguments=sys.argv[1:]):
     parser_train.add_argument('-l', '--sequence_len', type=int, default=300, help="Segment length to be divided into.")
     parser_train.add_argument('-g', '--gpu', type=str, default='0', help="GPU ID")
 
-    parser_train.set_defaults(func=train)
+    parser_train.set_defaults(func=run_train)
 
     args = parser.parse_args(arguments)
 
@@ -255,8 +269,7 @@ if __name__ == "__main__":
     print(sys.argv[1:])
     main()
     exit()
-    test =1
-    print("asdasd")
+    test = 1
     out_file = "scores_new"
     model_weight_path = "model3_weights.h5"
     test_folder = "../../work/data/cache/"
@@ -316,6 +329,7 @@ if __name__ == "__main__":
         model3.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = Adam())
         input_lengths = np.array([300 for i in range(len(x_tr))])
         label_lengths = np.array(label_lengths)
+
         outputs = {'ctc': np.zeros(n)}
         model3.fit([x_tr,np.array(y_labels),np.array(input_lengths),np.array(label_lengths)],outputs,batch_size = batch_size,epochs=epoch_num)
         model3.save_weights("model3_weights.h5")
