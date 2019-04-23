@@ -234,7 +234,7 @@ def train():
         print("Reading h5 data")
         h5_dict = read_h5(test_folder,inputpath,example_num = size)
         x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = size , class_num = 5 , seq_len = 300 ,padding = True)
-    assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
+        assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
     input_shape = x_tr.shape[1:]
     max_nuc_len = max(label_lengths)
     print(max_nuc_len)
@@ -288,7 +288,7 @@ def main(arguments=sys.argv[1:]):
     parser_train.add_argument('-r', '--readraw', default = False,type=bool,help="Boolean False for reading from h5 True for reading raw")
     parser_train.add_argument('-t', '--savetype', default = 0,type=int,help="Binary value 0 for saving model directly 1 for saving weights")
     parser_train.add_argument('-m', '--model', default = "model%s"%current_time, help="File name of the model file or the model weight file in h5 format.")
-    parser_train.add_argument('-s', '--size', default = 10,  help="Number of samples to be read from the input file")
+    parser_train.add_argument('-s', '--size',  type = int,default = 10,  help="Number of samples to be read from the input file")
     parser_train.add_argument('-o', '--out_file', default = "scores.txt", help="File name to output scores.")
     parser_train.add_argument('-b', '--batch_size', default = 32, help="Batch size")
     parser_train.add_argument('-e', '--epoch_num', default = 10, help="Epoch number")

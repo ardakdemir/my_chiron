@@ -83,6 +83,7 @@ def read_raw_into_segments(signal_folder,seq_length = 300,normalize= "mean",samp
         for i in range(max_label_length-len(y)):
             y_new.append(y_pad)
         y_padded.append(y_new)
+    x_data = np.array(x_data).reshape(len(x_data),seq_len,1)
     return x_data,y_padded,lengths,max_label_length
 
 def read_from_dict(my_dict,example_num = 100 , class_num = 5 , seq_len = 300 ,padding = True):
