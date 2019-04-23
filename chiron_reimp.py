@@ -12,6 +12,7 @@ import keras.backend as K
 from keras import callbacks,losses
 from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
+import matplotlib.pyplot as plt
 import sys
 
 from random import shuffle
