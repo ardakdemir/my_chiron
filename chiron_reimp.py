@@ -9,6 +9,7 @@ from keras.models import load_model
 from keras.optimizers import Adam
 from keras.backend import ctc_decode, variable,get_value
 import keras.backend as K
+from keras import callbacks,losses
 from keras.layers import Dense, Activation,Input,LSTM, Lambda
 import pickle
 import sys
