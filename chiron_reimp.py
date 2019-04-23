@@ -230,6 +230,7 @@ def train():
     if readraw:
         print("Reading raw data")
         x_tr, y_labels , label_lengths,max_label_length= read_raw_into_segments(inputpath,seq_length = seq_len, sample_num = size,y_pad = 4)
+        x_tr = np.array(x_tr).reshape(len(x_tr),seq_len,1)
     else:
         print("Reading h5 data")
         h5_dict = read_h5(test_folder,inputpath,example_num = size)
