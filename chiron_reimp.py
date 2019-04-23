@@ -221,6 +221,7 @@ def train():
     readraw  = FLAGS.readraw
     inputpath = FLAGS.input
     seq_length = FLAGS.sequence_len
+    model_name = FLAGS.model
     size = FLAGS.size
     epochs = FLAGS.epoch_num
     dev_size = int(size/10)
@@ -246,7 +247,6 @@ def train():
     top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
     decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
     #model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
-
     model.summary()
     model.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = Adam())
     print(x_tr.shape)
@@ -257,8 +257,16 @@ def train():
     dev_input_lengths = np.array([seq_length for i in range(dev_size)])
     dev_label_lengths = np.array(label_lengths[:dev_size])
     outputs = {'ctc': np.zeros(train_size)}
-    model.fit([train_x,np.array(train_y_labels),np.array(train_input_lengths),np.array(train_label_lengths)],outputs,batch_size = batch_size,callbacks=CB,epochs=epoch_num)
+    fig=plt.figure()
+    history = model.fit([train_x,np.array(train_y_labels),np.array(train_input_lengths),np.array(train_label_lengths)],outputs,batch_size = batch_size,callbacks=CB,epochs=epoch_num)
+    model.save( "model/" + model_name + ".h5")
+    figureSavePath=model_name + ".png"
+    plt.plot(history.history["loss"])
+    plt.plot(history.history["val_loss"])
+    plt.title("Training curve of the whole training set " + lossType)
 
+    plt.savefig(figureSavePath)
+    plt.close("all")
 def run_train(args):
     global FLAGS
     FLAGS = args
