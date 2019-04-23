@@ -22,7 +22,7 @@ import argparse
 from evaluate import evaluate_preds
 
 from read_data import read_h5,read_from_dict, split_data,read_raw_into_segments
-CB = [callbacks.EarlyStopping(monitor="val_loss", patience=10, mode="auto", restore_best_weights=True)]
+CB = [callbacks.EarlyStopping(monitor="val_loss", patience=10, mode="auto", restore_best_weights=True),keras.callbacks.TensorBoard(log_dir='./logs', histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=False, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None, embeddings_data=None, update_freq='epoch')]
 
 n = 300000
 test_size = n/10
