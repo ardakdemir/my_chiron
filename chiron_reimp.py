@@ -22,28 +22,28 @@ import argparse
 from evaluate import evaluate_preds
 
 from read_data import read_h5,read_from_dict, split_data,read_raw_into_segments
+CB = [callbacks.EarlyStopping(monitor="val_loss", patience=10, mode="auto", restore_best_weights=True)]
 
 n = 300000
 test_size = n/10
 class_num = 5
-rnn_layers = 3
+rnn_layers = 5
 cnn_filter_num = 256
-window+len = 3
+window_len = 3
 res_layer_num = 5
+hidden_num = 200
 batch_size = 32
 epoch_num = 3
 seq_len = 300
 max_nuc_len = 48
 pickle_path = "toy_data.pk"
 
-
-
 ## max_nuc_len is interesting
-def create_model(input_shape=(300,1),cnn_filter_num =256,rnn_hidden_num = 200,class_num=5,max_nuc_len = 48):
+def create_model(input_shape=(300,1),cnn_filter_num =256,window_len = 3,res_layers = 5,rnn_layers = 5,rnn_hidden_num = 200,class_num=5,max_nuc_len = 48):
     inputs = Input(shape=input_shape)
     input_length = Input(name='input_length', shape=[1], dtype='int64')
-    outputs = chiron_cnn(inputs,256,1,3)
-    outputs2 = chiron_rnn(outputs,200)
+    outputs = chiron_cnn(inputs,cnn_filter_num,1,window_len,res_layers = res_layers)
+    outputs2 = chiron_rnn(outputs,hidden_num = rnn_hidden_num,rnn_layers = rnn_layers, class_num = class_num)
     dense =  TimeDistributed(Dense(class_num))(outputs2)
     preds = TimeDistributed(Activation('softmax',name = 'softmax'))(dense)
     labels = Input(name='the_labels', shape=[max_nuc_len], dtype='int32')
@@ -216,7 +216,46 @@ def evaluation(args):
     test_model(Flags.loadtype,Flags.model,Flags.input, read_raw = Flags.readraw, sample_num= Flags.samplenum,test_size = Flags.size,out_file  = Flags.out_file )
 
 def train():
-    
+    loadtype = FLAGS.savetype
+    readraw  = FLAGS.readraw
+    inputpath = FLAGS.input
+    seq_length = FLAGS.sequence_len
+    size = FLAGS.size
+    epochs = FLAGS.epoch_num
+    dev_size = int(size/10)
+    batch_size = FLAGS.batch_size
+    epoch_num = FLAGS.epoch_num
+    train_size = int(size - dev_size)
+    test_folder = ""
+    if readraw:
+        print("Reading raw data")
+        x_tr, y_labels , label_lengths,max_label_length= read_raw_into_segments(inputpath,seq_length = seq_len, sample_num = size,y_pad = 4)
+    else:
+        print("Reading h5 data")
+        h5_dict = read_h5(test_folder,inputpath,example_num = size)
+        x_tr,y_tr,y_categorical,y_labels,label_lengths = read_from_dict(h5_dict,example_num = size , class_num = 5 , seq_len = 300 ,padding = True)
+    assert len(x_tr)== len(y_tr) == len(y_categorical )== len(y_labels) == len(label_lengths), "Dimension not matched"
+    input_shape = x_tr.shape[1:]
+    max_nuc_len = max(label_lengths)
+    print(max_nuc_len)
+    all_model = create_model(input_shape=input_shape,cnn_filter_num =256,window_len = 3,res_layers = 5,rnn_layers = 5,rnn_hidden_num = 200,class_num=5,max_nuc_len = max_nuc_len)
+    inputs,input_length,outputs,outputs2,dense,preds,labels,input_length,label_length,loss_out,model = all_model
+    flattened_input_x_width = keras.backend.squeeze(input_length, axis=-1)
+    top_k_decoded, _ = K.ctc_decode(preds, flattened_input_x_width)
+    decoder = K.function([inputs, flattened_input_x_width], [top_k_decoded[0]])
+    #model3 = Model(inputs= [inputs,labels,input_length,label_length],outputs=loss_out)
+
+    model.summary()
+    model.compile(loss = {'ctc': lambda y_true, y_pred: y_pred},optimizer = Adam())
+    print(x_tr.shape)
+    train_x = np.array(x_tr[:train_size])
+    train_y_labels= y_labels[:train_size]
+    train_input_lengths = np.array([seq_length for i in range(train_size)])
+    train_label_lengths = np.array(label_lengths[:train_size])
+    dev_input_lengths = np.array([seq_length for i in range(dev_size)])
+    dev_label_lengths = np.array(label_lengths[:dev_size])
+    outputs = {'ctc': np.zeros(train_size)}
+    model.fit([train_x,np.array(train_y_labels),np.array(train_input_lengths),np.array(train_label_lengths)],outputs,batch_size = batch_size,callbacks=CB,epochs=epoch_num)
 
 def run_train(args):
     global FLAGS
@@ -226,6 +265,7 @@ def run_train(args):
 
 
 def main(arguments=sys.argv[1:]):
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     currentDT = datetime.datetime.now()
     current_time = currentDT.strftime("%Y%m%d.%H%M%S")
     parser = argparse.ArgumentParser(prog='UoTchiron', description='A deep neural network basecaller.')
@@ -237,21 +277,21 @@ def main(arguments=sys.argv[1:]):
     parser_call.add_argument('-r', '--readraw', default = False,type=bool,help="Boolean False for reading from h5 True for reading raw")
     parser_call.add_argument('-m', '--model', required=True, help="File path to the model file or the model weight file in h5 format.")
     parser_call.add_argument('-s', '--size',  type = int , default = '100', help="Number of segments to be read from the input file")
-    parser_call.add_argument('-ss', '--samplenum',  type = int , default = '1', help="Number of signals to be read from the input file")
+    parser_call.add_argument('-ss', '--samplenum',  type = int , default = 1, help="Number of signals to be read from the input file")
     parser_call.add_argument('-o', '--out_file', type= str, default = "scores.txt", help="File name to output scores.")
     parser_call.add_argument('--beam', type=int, default=50, help="Beam width used in beam search decoder")
     parser_call.set_defaults(func=evaluation)
 
 
-    parser_train = subparsers.add_parser('train', description='Segmented basecalling', help='Perform basecalling.')
+    parser_train = subparsers.add_parser('train', description='Segmented basecalling', help='Train a  basecaller.')
     parser_train.add_argument('-i', '--input', required=True, help= "File path to the cached_data in h5 format or folder of the raw signals and labels.")
-    parser_train.add_argument('-t', '--savetype', default = 0,type=int,help="Binary value 0 for loading model directly 1 for loading weights")
+    parser_train.add_argument('-r', '--readraw', default = False,type=bool,help="Boolean False for reading from h5 True for reading raw")
+    parser_train.add_argument('-t', '--savetype', default = 0,type=int,help="Binary value 0 for saving model directly 1 for saving weights")
     parser_train.add_argument('-m', '--model', default = "model%s"%current_time, help="File name of the model file or the model weight file in h5 format.")
-    parser_train.add_argument('-s', '--size',  help="Number of samples to be read from the input file")
-
+    parser_train.add_argument('-s', '--size', default = 10,  help="Number of samples to be read from the input file")
     parser_train.add_argument('-o', '--out_file', default = "scores.txt", help="File name to output scores.")
-    parser_train.add_argument('-b', '--batch_size', default = "32", help="Batch size")
-    parser_train.add_argument('-e', '--epoch_num', default = "10", help="Epoch number")
+    parser_train.add_argument('-b', '--batch_size', default = 32, help="Batch size")
+    parser_train.add_argument('-e', '--epoch_num', default = 10, help="Epoch number")
     parser_train.add_argument('-l', '--sequence_len', type=int, default=300, help="Segment length to be divided into.")
     parser_train.add_argument('-g', '--gpu', type=str, default='0', help="GPU ID")
 
@@ -293,14 +333,17 @@ if __name__ == "__main__":
     #len(test_x_tr)
     inputs = Input(shape=x_tr.shape[1:])
     input_length = Input(name='input_length', shape=[1], dtype='int64')
-    outputs = chiron_cnn(inputs,256,1,3)
-    outputs2 = chiron_rnn(outputs,200)
+    outputs = chiron_cnn(inputs,cnn_filter_num,1,window_len)
+    outputs2 = chiron_rnn(outputs,hidden_num)
     dense =  TimeDistributed(Dense(class_num))(outputs2)
     preds = TimeDistributed(Activation('softmax',name = 'softmax'))(dense)
     #print(np.ones(outputs2.shape[1])*int(outputs2.shape[2]))
     model2 = Model(inputs= inputs,outputs=preds)
     sgd = SGD()
     model2.summary()
+
+
+
 
     ##ctc decoding only used during prediction
     ## during training cross-entropy is used to calculate loss over each softmax output
