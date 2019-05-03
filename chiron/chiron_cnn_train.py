@@ -10,15 +10,16 @@ from __future__ import print_function
 import tensorflow as tf
 
 from chiron.chiron_input import read_raw_data_sets
+
 from chiron.cnn import getcnnlogit
 from six.moves import range
 
 
 class Flags():
     def __init__(self):
-        self.data_dir = "/home/lee/Documents/Greg/Chiron/input_fast_folder"
-        self.sequence_len = 200
-        self.batch_size = 1024
+        self.data_dir = "/data/workspace/nanopore/data/chiron_data/code_dev_sample/"
+        self.sequence_len = 300
+        self.batch_size = 256 #1024
         self.step_rate = 1e-3
         self.max_steps = 100000
 
@@ -54,9 +55,12 @@ def prediction(logits, seq_length, label):
 
 
 def train():
-    train_ds, valid_ds = read_raw_data_sets(FLAGS.data_dir,
-                                            seq_length=FLAGS.sequence_len,
-                                            max_reads_num=10000)
+
+    train_ds= read_raw_data_sets(FLAGS.data_dir)
+    valid_ds=train_ds
+                                            #seq_length=FLAGS.sequence_len,
+                                            #max_reads_num=10000)
+    
     x = tf.placeholder(tf.float32, shape=[FLAGS.batch_size, FLAGS.sequence_len])
     seq_length = tf.placeholder(tf.int32, shape=[FLAGS.batch_size])
     y_indexs = tf.placeholder(tf.int64)
@@ -71,6 +75,7 @@ def train():
 
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
+
     with tf.device('/gpu:0'):
         sess = tf.Session()
         sess.run(init)

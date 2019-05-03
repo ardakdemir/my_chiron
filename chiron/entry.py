@@ -10,7 +10,7 @@ import sys
 import logging
 from os import path
 
-from chiron import chiron_eval
+from chiron import chiron_eval,my_chiron_eval
 from chiron import chiron_rcnn_train
 from chiron.utils import raw
 from chiron.utils.extract_sig_ref import extract
@@ -21,9 +21,11 @@ def evaluation(args):
     FLAGS.input_dir = FLAGS.input
     FLAGS.output_dir = FLAGS.output
     FLAGS.recursive = True
-    extract(FLAGS)
+
+    #extract(FLAGS)
     FLAGS.input = FLAGS.output + '/raw/'
-    chiron_eval.run(args)
+    
+    my_chiron_eval.run(args)
 
 
 def export(args):
@@ -41,7 +43,7 @@ def main(arguments=sys.argv[1:]):
     parser_call.add_argument('-o', '--output', required=True, help="Output folder path")
     parser_call.add_argument('-m', '--model',type = str, default=model_default_path, help="model folder path")
     parser_call.add_argument('-s', '--start', type=int, default=0, help="Start index of the signal file.")
-    parser_call.add_argument('-b', '--batch_size', type=int, default=1100,
+    parser_call.add_argument('-b', '--batch_size', type=int, default=100,
                              help="Batch size for run, bigger batch_size will increase the processing speed but require larger RAM load")
     parser_call.add_argument('-l', '--segment_len', type=int, default=300, help="Segment length to be divided into.")
     parser_call.add_argument('-j', '--jump', type=int, default=30, help="Step size for segment")

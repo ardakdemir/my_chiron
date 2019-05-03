@@ -21,6 +21,7 @@ from six.moves import range
 from six.moves import zip
 import tensorflow as tf
 from chiron.utils import progress
+#from chiron.chiron_input import read_raw_data_sets
 
 raw_labels = collections.namedtuple('raw_labels', ['start', 'length', 'base'])
 
@@ -114,6 +115,28 @@ class biglist(object):
             return self.handle[val]
         else:
             return self.holder[val]
+
+def loading_data(cacheFile):
+    with h5py.File(cacheFile,"r") as hf:
+        X = hf["X_data"][:]
+        seq_len = hf["seq_len"][:]
+        label = [hf["Y_ctc/index"]][:],hf["Y_ctc/value"][:], hf["Y_ctc/shape"]
+        label_vec = hf["Y_vec"][:]
+        label_seg = [ hf["Y_seg/"+str(i)][:] for i in range(len(X)) ]
+        label_raw = [ hf["label_raw/"+str(i)][:] for i in range(len(X))]
+    y_labels = []
+    pad =4
+    for seg,raw  in zip(label_seg,label_raw):
+        c = np.count_nonzero(seg==0)
+        if c> 0 :
+            raw_mapped = raw 
+            #raw_mapped[-c:]=[pad for i in range(c)]
+            raw_mapped = raw_mapped[:-c]
+            y_labels.append(raw_mapped)
+        else:
+            y_labels.append(raw_mapped)
+
+    return X , seq_len,label,label_vec, label_seg,y_labels
 
 
 class DataSet(object):
@@ -293,6 +316,7 @@ def read_cache_dataset(h5py_file_path):
     """Notice: Return a data reader for a h5py_file, call this function multiple
     time for parallel reading, this will give you N dependent dataset reader,
     each reader read independently from the h5py file."""
+    print(h5py_file_path)
     hdf5_record = h5py.File(h5py_file_path, "r")
     event_h = hdf5_record['event/record']
     event_length_h = hdf5_record['event/length']
@@ -575,6 +599,7 @@ def read_raw(raw_signal, raw_label, max_seq_length):
     current_length = 0
     current_label = []
     current_event = []
+    
     for indx, segment_length in enumerate(raw_label.length):
         current_start = raw_label.start[indx]
         current_base = raw_label.base[indx]
@@ -655,10 +680,22 @@ def base2ind(base, alphabet_n=4, base_n=1):
 
 def main():
     ### Input Test ###
-    Data_dir = '/home/heavens/label/data/output_test/'
-    train = read_tfrecord(Data_dir,"train.tfrecords",seq_length=1000)
-    for i in range(100):
-        inputX, sequence_length, label = train.next_batch(10)
+    Data_dir = '/data/workspace/nanopore/data/chiron_data/code_dev_sample/'
+    #train = read_tfrecord(Data_dir,"train.tfrecords",seq_length=1000)
+    eval = read_raw_data_sets(Data_dir)
+    
+    for i in range(1):
+        inputX, sequence_length, label = eval.next_batch(10)
+
+        print("-"*10)
+        print(sequence_length)
+        print("="*10)
+        from keras import backend as K
+        Y = K.eval(tf.SparseTensor(label[0], label[1], label[2]))
+        print(Y.shape)
+
+    #for i in range(100):
+    #    inputX, sequence_length, label = train.next_batch(10)
 
 
 if __name__ == '__main__':

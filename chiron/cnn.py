@@ -298,7 +298,7 @@ def getcnnfeature(signal, training, cnn_config='dna_model1'):
     Returns:
         cnn_fea: A 3D-Tensor of shape [batch_size, max_time, channel]
     """
-
+    #print(signal)
     # TODO: Read the structure hyper parameters from Json file.
     signal_shape = signal.get_shape().as_list()
     batch_n = tf.shape(signal)[0]

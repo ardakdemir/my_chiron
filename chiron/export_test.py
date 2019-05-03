@@ -25,18 +25,22 @@ def output_list(x,seq_length):
     training = tf.constant(False,dtype = tf.bool,name = 'Training')
     config_path = os.path.join(FLAGS.model,'model.json')
     model_configure = read_config(config_path)
+    
     logits, ratio = inference(x, 
                               seq_length, 
                               training=training,
                               full_sequence_len = FLAGS.segment_len,
                               configure = model_configure)
     ratio = tf.constant(ratio,dtype = tf.float32,shape = [])
+    
     seq_length_r = tf.cast(tf.round(tf.cast(seq_length,dtype = tf.float32)/ratio),tf.int32)
     prob_logits = path_prob(logits)
+    
     predict,log_prob = tf.nn.ctc_beam_search_decoder(tf.transpose(logits, perm=[1, 0, 2]), 
                                             seq_length_r, 
                                             merge_repeated=False,
                                             beam_width = FLAGS.beam_width)
+    
     return predict[0],logits,prob_logits,log_prob
 
 

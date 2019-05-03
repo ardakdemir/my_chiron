@@ -1,0 +1,6 @@
+# Reading Basecalling assembly output total rate(bp/s)
+0.112 5.398 0.774 0.008 6.292 2373.522
+# read_len batch_size segment_len jump start_pos
+14935 1100 300 30 0
+# input_name model_name
+20190202/raw/ model/DNA_default/
